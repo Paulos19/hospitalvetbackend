@@ -41,6 +41,7 @@ model User {
 
   // Campos específicos de CLIENTE
   address       String?
+  phone         String?
   
   // Relacionamentos
   // Se for CLIENT, qual médico é responsável por ele?
