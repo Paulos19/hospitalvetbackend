@@ -1,24 +1,31 @@
 import { prisma } from "@/lib/prisma";
-import jwt from "jsonwebtoken";
 import { NextResponse } from "next/server";
+import jwt from "jsonwebtoken";
 
 export async function POST(req: Request) {
   try {
+    // 1. Verificar Autenticação (pegar o token do Header)
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    
+    if (!authHeader) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+
     const token = authHeader.split(" ")[1];
-    const decoded: any = jwt.verify(token, process.env.JWT_SECRET || "default_secret");
     
+    // Decodifica o token para saber QUEM é o usuário
+    const decoded: any = jwt.verify(token, process.env.JWT_SECRET as string);
+    const userId = decoded.id; // Certifique-se que seu JWT tem o campo 'id'
+
+    // 2. Ler o pushToken enviado pelo Front
     const { pushToken } = await req.json();
 
     if (!pushToken) {
-      return NextResponse.json({ error: "Token de push é obrigatório" }, { status: 400 });
+      return NextResponse.json({ error: "Token não fornecido" }, { status: 400 });
     }
 
-    // Atualiza o usuário com o novo token
+    // 3. Salvar no Banco
     await prisma.user.update({
-      where: { id: decoded.userId },
+      where: { id: userId },
       data: { pushToken },
     });
 
