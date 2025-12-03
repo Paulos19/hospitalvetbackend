@@ -4,7 +4,6 @@ import jwt from "jsonwebtoken";
 
 export async function POST(req: Request) {
   try {
-    // 1. Verificar Autenticação (pegar o token do Header)
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
@@ -12,20 +11,20 @@ export async function POST(req: Request) {
 
     const token = authHeader.split(" ")[1];
     
-    // Decodifica o token para saber QUEM é o usuário
+    // Decodifica o token
     const decoded: any = jwt.verify(token, process.env.JWT_SECRET as string);
-    const userId = decoded.id; // Certifique-se que seu JWT tem o campo 'id'
+    
+    // CORREÇÃO: Usar 'userId' em vez de 'id', pois foi assim que foi gravado no Login/Google
+    const userId = decoded.userId; 
 
-    // 2. Ler o pushToken enviado pelo Front
     const { pushToken } = await req.json();
 
     if (!pushToken) {
       return NextResponse.json({ error: "Token não fornecido" }, { status: 400 });
     }
 
-    // 3. Salvar no Banco
     await prisma.user.update({
-      where: { id: userId },
+      where: { id: userId }, // Agora userId terá o valor correto
       data: { pushToken },
     });
 
