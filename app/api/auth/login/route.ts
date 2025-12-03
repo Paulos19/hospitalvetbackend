@@ -18,16 +18,18 @@ export async function POST(req: Request) {
   const token = jwt.sign(
     { userId: user.id, role: user.role, name: user.name },
     JWT_SECRET,
-    { expiresIn: '7d' } // Token válido por 7 dias (bom para mobile)
+    { expiresIn: '7d' }
   );
 
+  // CORREÇÃO: Adicionado o campo 'email' na resposta
   return NextResponse.json({ 
     token, 
     user: { 
       id: user.id, 
       name: user.name, 
+      email: user.email, // <--- O INGREDIENTE QUE FALTAVA
       role: user.role, 
-      inviteToken: user.inviteToken // Se for vet, já recebe o token para compartilhar
+      inviteToken: user.inviteToken 
     } 
   });
 }
