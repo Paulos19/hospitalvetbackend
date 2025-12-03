@@ -18,16 +18,16 @@ export async function POST(req: Request) {
   const token = jwt.sign(
     { userId: user.id, role: user.role, name: user.name },
     JWT_SECRET,
-    { expiresIn: '7d' }
+    { expiresIn: '7d' } 
   );
 
-  // CORREÇÃO: Adicionado o campo 'email' na resposta
   return NextResponse.json({ 
     token, 
     user: { 
       id: user.id, 
       name: user.name, 
-      email: user.email, // <--- O INGREDIENTE QUE FALTAVA
+      email: user.email,
+      photoUrl: user.photoUrl, // <--- ADICIONADO
       role: user.role, 
       inviteToken: user.inviteToken 
     } 
