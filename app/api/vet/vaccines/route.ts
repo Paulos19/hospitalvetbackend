@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { sendPushNotification } from "@/lib/notifications"; // Certifique-se que criou este arquivo no passo anterior
+import { sendPushNotification } from "@/lib/notifications";
 import jwt from "jsonwebtoken";
 import { NextResponse } from "next/server";
 
@@ -10,10 +10,8 @@ export async function POST(req: Request) {
     if (!authHeader) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     
     const token = authHeader.split(" ")[1];
-    // Decodifica o token para saber quem está fazendo a requisição
     const decoded: any = jwt.verify(token, process.env.JWT_SECRET || "default_secret");
 
-    // Apenas veterinários podem lançar vacinas
     if (decoded.role !== 'VET') {
         return NextResponse.json({ error: "Acesso negado. Apenas veterinários." }, { status: 403 });
     }
@@ -35,21 +33,38 @@ export async function POST(req: Request) {
       },
     });
 
-    // 4. Lógica de Notificação
-    // Buscamos o pet e incluímos o dono (owner) para acessar o pushToken
+    // 4. Lógica de Notificação Completa (Persistência + Push)
     const pet = await prisma.pet.findUnique({
       where: { id: petId },
       include: { owner: true }
     });
 
-    // Se o pet tem dono e o dono tem um token de notificação salvo...
-    if (pet && pet.owner && pet.owner.pushToken) {
-      await sendPushNotification(
-        pet.owner.pushToken,
-        'Vacina Aplicada! 💉',
-        `O registro da vacina ${name} para ${pet.name} foi atualizado.`,
-        { petId: pet.id } // Dados extras que podem servir para abrir a tela do pet ao clicar
-      );
+    if (pet && pet.owner) {
+      const title = 'Vacina Aplicada! 💉';
+      const message = `O registro da vacina ${name} para ${pet.name} foi atualizado.`;
+
+      // A) Salvar notificação no Banco de Dados (Para aparecer na tela de notificações)
+      // Nota: Certifique-se de que o model Notification foi criado no schema.prisma
+      await prisma.notification.create({
+        data: {
+          userId: pet.owner.id,
+          petId: pet.id,
+          title,
+          message,
+          type: 'VACCINE',
+          read: false
+        }
+      });
+
+      // B) Enviar Push Notification (Para avisar no celular)
+      if (pet.owner.pushToken) {
+        await sendPushNotification(
+          pet.owner.pushToken,
+          title,
+          message,
+          { petId: pet.id, type: 'VACCINE' }
+        );
+      }
     }
 
     return NextResponse.json(vaccine);

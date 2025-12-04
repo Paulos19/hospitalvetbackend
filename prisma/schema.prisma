@@ -27,93 +27,115 @@ enum AnimalType {
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
-  password  String   // Hash
+  password  String // Hash
   name      String
   cpf       String?  @unique // Obrigatório para CLIENT e VET
   role      Role     @default(CLIENT)
-  photoUrl  String?  // <--- NOVO CAMPO: Foto de Perfil
+  photoUrl  String? // <--- NOVO CAMPO: Foto de Perfil
   pushToken String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Campos específicos de VETERINÁRIO
-  crmv          String?  // Registro profissional
-  specialty     String?
-  inviteToken   String?  @unique // O Token que o médico passa para o cliente (ex: "DR-SILVA-123")
+  crmv        String? // Registro profissional
+  specialty   String?
+  inviteToken String? @unique // O Token que o médico passa para o cliente (ex: "DR-SILVA-123")
 
   // Campos específicos de CLIENTE
-  address       String?
-  phone         String?
-  
+  address String?
+  phone   String?
+
   // Relacionamentos
   // Se for CLIENT, qual médico é responsável por ele?
-  myVetId       String?
-  myVet         User?    @relation("VetClients", fields: [myVetId], references: [id])
-  
+  myVetId String?
+  myVet   User?   @relation("VetClients", fields: [myVetId], references: [id])
+
   // Se for VET, lista de clientes que ele atende
-  patients      User[]   @relation("VetClients")
+  patients User[] @relation("VetClients")
 
   // Se for CLIENT, seus animais
-  pets          Pet[]
+  pets Pet[]
 
   // Se for VET, agendamentos que ele fará
   appointmentsDoctor Appointment[] @relation("DoctorAppointments")
-  
+
   // Se for CLIENT, agendamentos dos seus pets
-  appointmentsClient Appointment[] @relation("ClientAppointments")
+  appointmentsClient Appointment[]  @relation("ClientAppointments")
+  notifications      Notification[]
 }
 
 model Pet {
-  id          String   @id @default(cuid())
-  name        String
-  type        AnimalType
-  breed       String?
-  birthDate   DateTime?
-  weight      Float?
-  sex         String?  @default("MACHO")
-  photoUrl    String?
-  
-  ownerId     String
-  owner       User     @relation(fields: [ownerId], references: [id])
+  id        String     @id @default(cuid())
+  name      String
+  type      AnimalType
+  breed     String?
+  birthDate DateTime?
+  weight    Float?
+  sex       String?    @default("MACHO")
+  photoUrl  String?
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id])
 
   prescriptions Prescription[]
   vaccinations  Vaccination[]
   appointments  Appointment[]
+  notifications Notification[]
 }
 
 model Appointment {
-  id          String   @id @default(cuid())
-  date        DateTime
-  reason      String
-  status      String   @default("AGENDADO") // AGENDADO, FINALIZADO, CANCELADO
-  
-  petId       String
-  pet         Pet      @relation(fields: [petId], references: [id])
+  id     String   @id @default(cuid())
+  date   DateTime
+  reason String
+  status String   @default("AGENDADO") // AGENDADO, FINALIZADO, CANCELADO
 
-  doctorId    String
-  doctor      User     @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  petId String
+  pet   Pet    @relation(fields: [petId], references: [id])
 
-  clientId    String
-  client      User     @relation("ClientAppointments", fields: [clientId], references: [id])
+  doctorId String
+  doctor   User   @relation("DoctorAppointments", fields: [doctorId], references: [id])
+
+  clientId String
+  client   User   @relation("ClientAppointments", fields: [clientId], references: [id])
 }
 
 model Prescription {
   id          String   @id @default(cuid())
   title       String
-  description String   // Conteúdo da receita
-  medications String   // JSON ou Texto listando remédios
+  description String // Conteúdo da receita
+  medications String // JSON ou Texto listando remédios
   issuedAt    DateTime @default(now())
-  
-  petId       String
-  pet         Pet      @relation(fields: [petId], references: [id])
+
+  petId String
+  pet   Pet    @relation(fields: [petId], references: [id])
 }
 
 model Vaccination {
-  id          String   @id @default(cuid())
-  name        String   // Nome da vacina (ex: V10)
+  id               String    @id @default(cuid())
+  name             String // Nome da vacina (ex: V10)
   dateAdministered DateTime
-  nextDueDate DateTime? // Data da próxima dose
-  
-  petId       String
-  pet         Pet      @relation(fields: [petId], references: [id])
+  nextDueDate      DateTime? // Data da próxima dose
+
+  petId String
+  pet   Pet    @relation(fields: [petId], references: [id])
+}
+
+enum NotificationType {
+  VACCINE
+  PRESCRIPTION
+  APPOINTMENT
+  GENERIC
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String // O ID do Cliente que receberá a notificação
+  user      User             @relation(fields: [userId], references: [id])
+  petId     String? // O ID do Pet relacionado (opcional, mas recomendado)
+  pet       Pet?             @relation(fields: [petId], references: [id])
+  title     String
+  message   String
+  type      NotificationType @default(GENERIC)
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
 }
