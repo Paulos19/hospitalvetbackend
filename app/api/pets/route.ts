@@ -14,8 +14,8 @@ export async function POST(req: Request) {
     const ownerId = decoded.userId;
 
     const body = await req.json();
-    // ATUALIZADO: Recebendo birthDate
-    const { name, type, breed, weight, photoUrl, birthDate } = body;
+    // ATUALIZADO: Recebendo 'sex'
+    const { name, type, breed, weight, photoUrl, birthDate, sex } = body;
 
     const pet = await prisma.pet.create({
       data: {
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
         type, 
         breed,
         weight: weight ? parseFloat(weight) : null,
-        // ATUALIZADO: Convertendo string ISO para Date objeto
+        sex: sex || 'MACHO', // <--- Salvando
         birthDate: birthDate ? new Date(birthDate) : null,
         photoUrl,
         ownerId
@@ -45,12 +45,10 @@ export async function GET(req: Request) {
   const token = authHeader.split(' ')[1];
   try {
     const decoded: any = jwt.verify(token, JWT_SECRET);
-    
     const pets = await prisma.pet.findMany({
       where: { ownerId: decoded.userId },
-      orderBy: { name: 'asc' } // Opcional: ordenar por nome
+      orderBy: { name: 'asc' }
     });
-
     return NextResponse.json(pets);
   } catch (err) {
     return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
