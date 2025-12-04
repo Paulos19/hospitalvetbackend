@@ -70,7 +70,7 @@ model Pet {
   breed       String?
   birthDate   DateTime?
   weight      Float?
-  sex         String?  @default("MACHO") // <--- NOVO CAMPO
+  sex         String?  @default("MACHO")
   photoUrl    String?
   
   ownerId     String
