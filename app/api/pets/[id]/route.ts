@@ -17,8 +17,15 @@ function getUserId(req: Request) {
   }
 }
 
+// Definição do tipo para props da rota (Next.js 15+)
+type RouteProps = {
+  params: Promise<{ id: string }>;
+};
+
 // GET: Buscar um pet específico
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, props: RouteProps) {
+  const params = await props.params; // <--- AWAIT ESSENCIAL AQUI
+  
   const userId = getUserId(req);
   if (!userId) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
@@ -28,17 +35,13 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
   if (!pet) return NextResponse.json({ error: 'Pet não encontrado' }, { status: 404 });
 
-  // Verificação básica de segurança (opcional: permitir que o vet veja também)
-  if (pet.ownerId !== userId) {
-      // Aqui poderíamos checar se quem está pedindo é o VET do dono, mas por enquanto:
-      // return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-  }
-
   return NextResponse.json(pet);
 }
 
-// PUT: Atualizar Pet (Feature de Editar)
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+// PUT: Atualizar Pet
+export async function PUT(req: Request, props: RouteProps) {
+  const params = await props.params; // <--- AWAIT ESSENCIAL AQUI
+
   const userId = getUserId(req);
   if (!userId) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
@@ -46,7 +49,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     const body = await req.json();
     const { name, breed, weight, birthDate, type, photoUrl } = body;
 
-    // Verifica se o pet pertence ao usuário antes de editar
+    // 1. Verifica se o pet existe e pertence ao usuário
     const existingPet = await prisma.pet.findUnique({
         where: { id: params.id }
     });
@@ -55,6 +58,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
         return NextResponse.json({ error: 'Pet não encontrado ou sem permissão' }, { status: 403 });
     }
 
+    // 2. Atualiza
     const updatedPet = await prisma.pet.update({
       where: { id: params.id },
       data: {
