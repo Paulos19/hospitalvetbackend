@@ -2,20 +2,16 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
-// GET: Buscar detalhes de um único veterinário
+// GET: Buscar detalhes completos do veterinário
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ id: string }> } // <--- CORREÇÃO 1: Tipagem como Promise
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params; // <--- CORREÇÃO 2: Aguardar a resolução dos params
+    const { id } = await params;
 
-    // CORREÇÃO 3: Usar findFirst porque 'role' não é campo único, então não pode ir no findUnique junto com id
     const vet = await prisma.user.findFirst({
-      where: { 
-        id, 
-        role: 'VET' 
-      },
+      where: { id, role: 'VET' },
       select: {
         id: true,
         name: true,
@@ -23,7 +19,14 @@ export async function GET(
         crmv: true,
         specialty: true,
         inviteToken: true,
-        photoUrl: true, // Útil para mostrar a foto na edição
+        photoUrl: true,
+        // CORREÇÃO: Adicionados os campos que faltavam
+        createdAt: true, 
+        _count: {
+          select: {
+            patients: true
+          }
+        }
       },
     });
 
@@ -33,60 +36,44 @@ export async function GET(
 
     return NextResponse.json(vet);
   } catch (error) {
-    console.error("Erro ao buscar detalhes do veterinário:", error);
-    return NextResponse.json({ error: 'Erro interno ao buscar detalhes' }, { status: 500 });
+    console.error("Erro ao buscar detalhes:", error);
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
 }
 
-// PATCH: Atualizar informações
+// PATCH: Atualizar senha ou dados
 export async function PATCH(
   req: Request,
-  { params }: { params: Promise<{ id: string }> } // <--- CORREÇÃO 1
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params; // <--- CORREÇÃO 2
+    const { id } = await params;
     const body = await req.json();
     
     const updateData: any = {};
 
-    // 1. Atualizar informações básicas
     if (body.name !== undefined) updateData.name = body.name;
     if (body.crmv !== undefined) updateData.crmv = body.crmv;
     if (body.specialty !== undefined) updateData.specialty = body.specialty;
 
-    // 2. Alterar Senha
+    // Lógica de troca de senha
     if (body.password) {
       const hashedPassword = await bcrypt.hash(body.password, 10);
       updateData.password = hashedPassword;
     }
 
     if (Object.keys(updateData).length === 0) {
-        return NextResponse.json({ error: 'Nenhum dado válido fornecido para atualização.' }, { status: 400 });
-    }
-
-    // Nota: Aqui o 'update' exige um 'where' único (apenas ID).
-    // Se quiser garantir que é VET, faça uma verificação antes ou use updateMany (mas update é melhor para ID)
-    
-    // Verificação de segurança opcional: garantir que é VET antes de atualizar
-    const isVet = await prisma.user.findFirst({ where: { id, role: 'VET' } });
-    if (!isVet) {
-        return NextResponse.json({ error: 'Veterinário não encontrado' }, { status: 404 });
+        return NextResponse.json({ error: 'Nada para atualizar.' }, { status: 400 });
     }
 
     const updatedVet = await prisma.user.update({
-      where: { id }, // No update, passamos apenas o ID
+      where: { id },
       data: updateData,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-      }
     });
 
-    return NextResponse.json({ message: 'Veterinário atualizado com sucesso!', vet: updatedVet });
+    return NextResponse.json({ message: 'Atualizado com sucesso!', vet: updatedVet });
 
   } catch (error) {
-    console.error("Erro ao atualizar veterinário:", error);
-    return NextResponse.json({ error: 'Erro interno ao atualizar veterinário' }, { status: 500 });
+    return NextResponse.json({ error: 'Erro ao atualizar' }, { status: 500 });
   }
 }
