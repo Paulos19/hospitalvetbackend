@@ -6,7 +6,6 @@ const JWT_SECRET = process.env.JWT_SECRET || 'sua-chave-secreta-super-segura';
 
 export async function POST(req: Request) {
   try {
-    // 1. Validar Autenticação (Pegar ID do usuário logado)
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     
@@ -14,17 +13,18 @@ export async function POST(req: Request) {
     const decoded: any = jwt.verify(token, JWT_SECRET);
     const ownerId = decoded.userId;
 
-    // 2. Pegar dados do corpo
     const body = await req.json();
-    const { name, type, breed, weight, photoUrl } = body;
+    // ATUALIZADO: Recebendo birthDate
+    const { name, type, breed, weight, photoUrl, birthDate } = body;
 
-    // 3. Salvar no Banco
     const pet = await prisma.pet.create({
       data: {
         name,
-        type, // Certifique-se de enviar: 'CACHORRO', 'GATO', etc.
+        type, 
         breed,
-        weight: parseFloat(weight),
+        weight: weight ? parseFloat(weight) : null,
+        // ATUALIZADO: Convertendo string ISO para Date objeto
+        birthDate: birthDate ? new Date(birthDate) : null,
         photoUrl,
         ownerId
       }
@@ -38,17 +38,21 @@ export async function POST(req: Request) {
   }
 }
 
-// Rota GET para listar os pets na Home
 export async function GET(req: Request) {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
   
   const token = authHeader.split(' ')[1];
-  const decoded: any = jwt.verify(token, JWT_SECRET);
+  try {
+    const decoded: any = jwt.verify(token, JWT_SECRET);
+    
+    const pets = await prisma.pet.findMany({
+      where: { ownerId: decoded.userId },
+      orderBy: { name: 'asc' } // Opcional: ordenar por nome
+    });
 
-  const pets = await prisma.pet.findMany({
-    where: { ownerId: decoded.userId }
-  });
-
-  return NextResponse.json(pets);
+    return NextResponse.json(pets);
+  } catch (err) {
+    return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
+  }
 }
