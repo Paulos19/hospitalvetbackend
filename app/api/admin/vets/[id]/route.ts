@@ -1,19 +1,21 @@
-// app/api/admin/vets/[id]/route.ts
-
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
-// GET: Buscar detalhes de um único veterinário para a tela de edição
+// GET: Buscar detalhes de um único veterinário
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } } 
+  { params }: { params: Promise<{ id: string }> } // <--- CORREÇÃO 1: Tipagem como Promise
 ) {
   try {
-    const { id } = params;
+    const { id } = await params; // <--- CORREÇÃO 2: Aguardar a resolução dos params
 
-    const vet = await prisma.user.findUnique({
-      where: { id, role: 'VET' },
+    // CORREÇÃO 3: Usar findFirst porque 'role' não é campo único, então não pode ir no findUnique junto com id
+    const vet = await prisma.user.findFirst({
+      where: { 
+        id, 
+        role: 'VET' 
+      },
       select: {
         id: true,
         name: true,
@@ -21,6 +23,7 @@ export async function GET(
         crmv: true,
         specialty: true,
         inviteToken: true,
+        photoUrl: true, // Útil para mostrar a foto na edição
       },
     });
 
@@ -35,13 +38,13 @@ export async function GET(
   }
 }
 
-// PATCH: Atualizar informações ou senha do veterinário
+// PATCH: Atualizar informações
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } } 
+  { params }: { params: Promise<{ id: string }> } // <--- CORREÇÃO 1
 ) {
   try {
-    const { id } = params;
+    const { id } = await params; // <--- CORREÇÃO 2
     const body = await req.json();
     
     const updateData: any = {};
@@ -61,8 +64,17 @@ export async function PATCH(
         return NextResponse.json({ error: 'Nenhum dado válido fornecido para atualização.' }, { status: 400 });
     }
 
+    // Nota: Aqui o 'update' exige um 'where' único (apenas ID).
+    // Se quiser garantir que é VET, faça uma verificação antes ou use updateMany (mas update é melhor para ID)
+    
+    // Verificação de segurança opcional: garantir que é VET antes de atualizar
+    const isVet = await prisma.user.findFirst({ where: { id, role: 'VET' } });
+    if (!isVet) {
+        return NextResponse.json({ error: 'Veterinário não encontrado' }, { status: 404 });
+    }
+
     const updatedVet = await prisma.user.update({
-      where: { id, role: 'VET' },
+      where: { id }, // No update, passamos apenas o ID
       data: updateData,
       select: {
         id: true,
